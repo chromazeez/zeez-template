@@ -36,6 +36,10 @@ void initialize() {
   pros::lcd::set_text(1, "Calibrating IMU...");
   drive.calibrateImu();
   pros::lcd::set_text(1, "IMU ready");
+  
+  odom.start();
+  odom.reset(Pose{0, 0, 0}); // start at origin
+
 
   auton::initSelector(); // start auton selector task
 }
