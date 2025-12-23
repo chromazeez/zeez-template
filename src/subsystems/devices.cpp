@@ -9,7 +9,11 @@ Drive drive(ports::L1, ports::L2, ports::L3,
             ports::R1, ports::R2, ports::R3,
             ports::IMU);
 
+// Global odometry instance
 Odom odom(drive);
+
+// Global motion controller
+Motion motion(drive, odom);
 
 
 // Example later:
