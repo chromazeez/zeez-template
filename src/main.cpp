@@ -1,11 +1,12 @@
 #include "main.h"
 #include "config/ports.hpp"
 #include "drive/drive.hpp"
-
-
-Drive drive(ports::L1, ports::L2, ports::L3,
-            ports::R1, ports::R2, ports::R3,
-            ports::IMU);
+#include "subsystems/devices.hpp"
+#include "auton/auton.hpp"
+#include "pros/llemu.hpp"
+#include "pros/rtos.hpp"
+#include "subsystems/devices.hpp"
+#include "auton/auton.hpp"
 
 
 /**
@@ -33,12 +34,12 @@ void on_center_button() {
 void initialize() {
   pros::lcd::initialize();
   pros::lcd::set_text(1, "Calibrating IMU...");
-
-  drive.calibrateImu();  // reset + wait
-
+  drive.calibrateImu();
   pros::lcd::set_text(1, "IMU ready");
-  pros::lcd::register_btn1_cb(on_center_button);
+
+  auton::initSelector(); // start auton selector task
 }
+
 
 /**
  * Runs while the robot is in the disabled state of Field Management System or
@@ -69,7 +70,9 @@ void competition_initialize() {}
  * will be stopped. Re-enabling the robot will restart the task, not re-start it
  * from where it left off.
  */
-void autonomous() {}
+void autonomous() {
+	auton::runSelected();
+}
 
 /**
  * Runs the operator control code. This function will be started in its own task
