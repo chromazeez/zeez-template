@@ -32,6 +32,8 @@ Drive::Drive(int l1, int l2, int l3, int r1, int r2, int r3, int imuPort)
     m.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
     m.set_reversed(true); // VERY COMMON on tank drives; flip if wrong
   }
+
+  lastMs = pros::millis();
 }
 
 void Drive::calibrateImu() {
@@ -50,12 +52,25 @@ void Drive::tank(int leftPct, int rightPct) {
 
 void Drive::setVoltage(int leftMv, int rightMv) {
   // Clamp to safe range
-  leftMv = std::max(-constants::MAX_VOLTAGE, std::min(constants::MAX_VOLTAGE, leftMv));
+  leftMv  = std::max(-constants::MAX_VOLTAGE, std::min(constants::MAX_VOLTAGE, leftMv));
   rightMv = std::max(-constants::MAX_VOLTAGE, std::min(constants::MAX_VOLTAGE, rightMv));
+
+  // Slew limiting
+  if (slewEnabled) {
+    int now = pros::millis();
+    double dt = (now - lastMs) / 1000.0;
+    if (dt < 0) dt = 0;
+    if (dt > 0.05) dt = 0.05; // safety clamp if something stalls
+    lastMs = now;
+
+    leftMv  = (int)leftSlew.step((double)leftMv, dt);
+    rightMv = (int)rightSlew.step((double)rightMv, dt);
+  }
 
   for (auto& m : left)  m.move_voltage(leftMv);
   for (auto& m : right) m.move_voltage(rightMv);
 }
+
 
 void Drive::brakeHold(bool enabled) {
   const auto mode = enabled ? pros::E_MOTOR_BRAKE_HOLD : pros::E_MOTOR_BRAKE_COAST;
@@ -66,6 +81,11 @@ void Drive::brakeHold(bool enabled) {
 void Drive::tareEncoders() {
   for (auto& m : left)  m.tare_position();
   for (auto& m : right) m.tare_position();
+
+  // Reset slew so next command doesn't ramp from an old value
+  leftSlew.reset(0);
+  rightSlew.reset(0);
+  lastMs = pros::millis();
 }
 
 void Drive::turnTo(double targetHeadingDeg) {
@@ -83,6 +103,10 @@ void Drive::turnTo(double targetHeadingDeg) {
   const int timeoutMs = 2000;
 
   int elapsed = 0;
+
+  leftSlew.reset(0);
+  rightSlew.reset(0);
+  lastMs = pros::millis();
 
   while (elapsed < timeoutMs) {
     const double current = headingDeg();
@@ -105,6 +129,10 @@ void Drive::turnTo(double targetHeadingDeg) {
   }
 
   setVoltage(0, 0);
+  leftSlew.reset(0);
+  rightSlew.reset(0);
+  lastMs = pros::millis();
+
 }
 
 void Drive::driveDistance(double inches, double headingHoldDeg) {
@@ -163,6 +191,9 @@ void Drive::driveDistance(double inches, double headingHoldDeg) {
   }
 
   setVoltage(0, 0);
+  leftSlew.reset(0);
+  rightSlew.reset(0);
+  lastMs = pros::millis();
 }
 
 void Drive::arcade(int forwardPct, int turnPct) {
@@ -175,7 +206,20 @@ void Drive::arcade(int forwardPct, int turnPct) {
   tank(left, right);
 }
 
+void Drive::enableSlew(bool enabled) {
+  slewEnabled = enabled;
+}
 
+void Drive::setSlewRate(double mvPerSec) {
+  leftSlew.setRate(mvPerSec);
+  rightSlew.setRate(mvPerSec);
+}
+
+void Drive::resetSlew() {
+  leftSlew.reset(0);
+  rightSlew.reset(0);
+  lastMs = pros::millis();
+}
 
 
 double Drive::leftMotorDeg() const {

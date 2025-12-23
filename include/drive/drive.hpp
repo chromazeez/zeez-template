@@ -4,6 +4,7 @@
 #include <array>
 #include "control/pid.hpp"
 #include <cmath>
+#include "control/slew.hpp"
 
 
 
@@ -34,10 +35,22 @@ public:
   double leftMotorDeg() const;   // avg of left motors
   double rightMotorDeg() const;  // avg of right motors
   double headingDeg() const;     // 0..360 from IMU
+
+  // Slew rate control
+  void enableSlew(bool enabled);
+  void setSlewRate(double mvPerSec);
+
+  // Reset slew limiter (e.g. after stopping)
+  void resetSlew();
+
   
 
 private:
   std::array<pros::Motor, 3> left;
   std::array<pros::Motor, 3> right;
   pros::Imu imu;
+  Slew leftSlew{24000.0};
+  Slew rightSlew{24000.0};
+  int lastMs{0};
+  bool slewEnabled{true};
 };
