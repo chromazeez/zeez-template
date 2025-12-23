@@ -4,6 +4,7 @@
 #include <cmath>
 #include "util/units.hpp"
 
+
 static double avgMotorPositionDeg(const std::array<pros::Motor, 3>& motors) {
   double sum = 0.0;
   for (const auto& m : motors) sum += m.get_position(); // degrees
@@ -105,6 +106,65 @@ void Drive::turnTo(double targetHeadingDeg) {
 
   setVoltage(0, 0);
 }
+
+void Drive::driveDistance(double inches, double headingHoldDeg) {
+  // Reset encoder baseline
+  tareEncoders();
+
+  // If user didn't specify heading, hold the heading we start with
+  if (std::isnan(headingHoldDeg)) headingHoldDeg = headingDeg();
+
+  // PID for distance (inches)
+  PID dist(850.0, 0.0, 4200.0); // starter gains (will tune)
+  dist.setOutputLimit(constants::MAX_VOLTAGE);
+
+  // Heading correction (P-only to start)
+  // Output is millivolts added/subtracted to keep straight
+  const double kHeadingP = 80.0;
+
+  const int dtMs = 10;
+  const double dt = dtMs / 1000.0;
+
+  int settleCount = 0;
+  const int settleNeeded = 20;       // 200ms stable
+  const double settleErrIn = 0.25;   // within 1/4 inch
+  const int timeoutMs = 3000;
+
+  int elapsed = 0;
+
+  while (elapsed < timeoutMs) {
+    const double leftIn  = constants::motorDegToInches(leftMotorDeg());
+    const double rightIn = constants::motorDegToInches(rightMotorDeg());
+    const double avgIn = (leftIn + rightIn) / 2.0;
+
+    const double errorIn = inches - avgIn;
+
+    // Distance output (forward power)
+    const double forwardMv = dist.step(inches, avgIn, dt);
+
+    // Heading correction
+    const double currentHeading = headingDeg();
+    const double headingErr = angleErrorDeg(headingHoldDeg, currentHeading);
+    const double turnMv = kHeadingP * headingErr;
+
+    // Combine: forward +/- turn
+    const int leftMv  = (int)(forwardMv + turnMv);
+    const int rightMv = (int)(forwardMv - turnMv);
+
+    setVoltage(leftMv, rightMv);
+
+    if (std::abs(errorIn) < settleErrIn) settleCount++;
+    else settleCount = 0;
+
+    if (settleCount >= settleNeeded) break;
+
+    pros::delay(dtMs);
+    elapsed += dtMs;
+  }
+
+  setVoltage(0, 0);
+}
+
 
 
 double Drive::leftMotorDeg() const {

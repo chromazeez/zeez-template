@@ -3,6 +3,8 @@
 #include "pros/imu.hpp"
 #include <array>
 #include "control/pid.hpp"
+#include <cmath>
+
 
 
 class Drive {
@@ -20,11 +22,17 @@ public:
   void setVoltage(int leftMv, int rightMv);  // -12000..12000
   void brakeHold(bool enabled);
 
+  // Drive forward/backward a distance (inches), while holding a heading (deg).
+  // If headingHoldDeg is NAN, it holds the current heading at start.
+  void driveDistance(double inches, double headingHoldDeg = NAN);
+
+
   // Sensors
   void tareEncoders();
   double leftMotorDeg() const;   // avg of left motors
   double rightMotorDeg() const;  // avg of right motors
   double headingDeg() const;     // 0..360 from IMU
+  
 
 private:
   std::array<pros::Motor, 3> left;
