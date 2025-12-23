@@ -165,6 +165,17 @@ void Drive::driveDistance(double inches, double headingHoldDeg) {
   setVoltage(0, 0);
 }
 
+void Drive::arcade(int forwardPct, int turnPct) {
+  int left = forwardPct + turnPct;
+  int right = forwardPct - turnPct;
+
+  left = std::max(-100, std::min(100, left));
+  right = std::max(-100, std::min(100, right));
+
+  tank(left, right);
+}
+
+
 
 
 double Drive::leftMotorDeg() const {

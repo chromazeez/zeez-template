@@ -88,8 +88,6 @@ void autonomous() {
  * task, not resume it from where it left off.
  */
 void opcontrol() {
-  pros::Controller master(pros::E_CONTROLLER_MASTER);
-  
   auto deadband = [](int v, int db = 5) {
     return (std::abs(v) < db) ? 0 : v;
   };
@@ -98,15 +96,14 @@ void opcontrol() {
     int forward = master.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);   // -127..127
     int turn    = master.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);  // -127..127
 
-    int left  = forward + turn;
-    int right = forward - turn;
+    forward = deadband(forward);
+    turn    = deadband(turn);
 
-    // clamp to controller range
-    left  = std::max(-127, std::min(127, left));
-    right = std::max(-127, std::min(127, right));
+    // convert to -100..100
+    forward = (forward * 100) / 127;
+    turn    = (turn * 100) / 127;
 
-    // convert to -100..100 and send
-    drive.tank((left * 100) / 127, (right * 100) / 127);
+    drive.arcade(forward, turn);
 
     pros::delay(10);
   }

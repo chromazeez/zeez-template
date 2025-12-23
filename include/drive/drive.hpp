@@ -26,6 +26,8 @@ public:
   // If headingHoldDeg is NAN, it holds the current heading at start.
   void driveDistance(double inches, double headingHoldDeg = NAN);
 
+  // Arcade drive helper
+  void arcade(int forwardPct, int turnPct); // -100..100
 
   // Sensors
   void tareEncoders();
