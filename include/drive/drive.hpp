@@ -2,6 +2,8 @@
 #include "pros/motors.hpp"
 #include "pros/imu.hpp"
 #include <array>
+#include "control/pid.hpp"
+
 
 class Drive {
 public:
@@ -9,6 +11,9 @@ public:
 
   // Call once in initialize()
   void calibrateImu();
+
+  // PID turn (degrees). Blocking call.
+  void turnTo(double targetHeadingDeg);
 
   // Driver control helpers
   void tank(int leftPct, int rightPct);      // -100..100

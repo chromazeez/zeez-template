@@ -2,6 +2,7 @@
 #include "config/constants.hpp"
 #include "pros/rtos.hpp"
 #include <cmath>
+#include "util/units.hpp"
 
 static double avgMotorPositionDeg(const std::array<pros::Motor, 3>& motors) {
   double sum = 0.0;
@@ -66,6 +67,46 @@ void Drive::tareEncoders() {
   for (auto& m : right) m.tare_position();
 }
 
+void Drive::turnTo(double targetHeadingDeg) {
+  // Basic turn PID gains (starter). You will tune on the robot.
+  // For IMU degrees -> motor millivolts, kP usually starts around 80-150.
+  PID pid(110.0, 0.0, 650.0);
+  pid.setOutputLimit(constants::MAX_VOLTAGE);
+
+  const int dtMs = 10;
+  const double dt = dtMs / 1000.0;
+
+  int settleCount = 0;
+  const int settleNeeded = 15;     // 15 * 10ms = 150ms stable
+  const double settleErrDeg = 1.0; // within 1 degree
+  const int timeoutMs = 2000;
+
+  int elapsed = 0;
+
+  while (elapsed < timeoutMs) {
+    const double current = headingDeg();
+    const double err = angleErrorDeg(targetHeadingDeg, current);
+
+    const double output = pid.step(0.0, -err, dt);
+    // Explanation: our PID assumes target-current. We want "error" to be the wrapped err.
+    // Using target=0, current=-err makes (0 - (-err)) = err.
+
+    // Turn in place: left +, right -
+    setVoltage((int)output, (int)-output);
+
+    if (std::abs(err) < settleErrDeg) settleCount++;
+    else settleCount = 0;
+
+    if (settleCount >= settleNeeded) break;
+
+    pros::delay(dtMs);
+    elapsed += dtMs;
+  }
+
+  setVoltage(0, 0);
+}
+
+
 double Drive::leftMotorDeg() const {
   return avgMotorPositionDeg(left);
 }
@@ -78,3 +119,5 @@ double Drive::headingDeg() const {
   // PROS IMU returns 0..360 typically
   return imu.get_heading();
 }
+
+
